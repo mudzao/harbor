@@ -45,7 +45,7 @@ export function RegisterForm({
       } else {
         router.push("/login?message=Check your email to confirm your account")
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred during registration")
     } finally {
       setLoading(false)

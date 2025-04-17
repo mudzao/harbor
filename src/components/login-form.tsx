@@ -32,6 +32,7 @@ export function LoginForm({
     setLoading(true)
 
     try {
+      setLoading(true)
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -40,9 +41,9 @@ export function LoginForm({
       if (error) {
         setError(error.message)
       } else {
-        router.push("/dashboard")
+        router.push("/admin/dashboard")
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred during login")
     } finally {
       setLoading(false)
