@@ -1,30 +1,55 @@
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
+import { updateSession } from '@/utils/supabase/middleware'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
-  const res = NextResponse.next()
-  const supabase = createMiddlewareClient({ req: request, res })
+  // Update session and get response
+  const res = await updateSession(request)
+  const url = new URL(request.url)
+  
+  // Check if this is a protected route (all admin routes and chat)
+  const isProtectedRoute = url.pathname.startsWith('/admin') || 
+                          url.pathname.startsWith('/chat') || 
+                          url.pathname === '/'
+  const isAuthRoute = url.pathname.startsWith('/login') || url.pathname.startsWith('/register')
+  
+  // Create a supabase client to check the session
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          // We don't need to set cookies during this middleware check
+        },
+        remove(name: string, options: CookieOptions) {
+          // We don't need to remove cookies during this middleware check
+        },
+      },
+    }
+  )
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
-  // If there's no session and the path is not login or register
-  if (!session && 
-      !request.nextUrl.pathname.startsWith('/login') && 
-      !request.nextUrl.pathname.startsWith('/register')) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/login'
-    redirectUrl.searchParams.set('redirect', request.nextUrl.pathname)
+  // Get user - this is more secure than getSession
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  // Redirect root to /chat
+  if (url.pathname === '/') {
+    return NextResponse.redirect(new URL('/chat', request.url))
+  }
+  
+  // If it's a protected route and no user, redirect to login
+  if (isProtectedRoute && !user) {
+    const redirectUrl = new URL('/login', request.url)
+    redirectUrl.searchParams.set('redirect', url.pathname)
     return NextResponse.redirect(redirectUrl)
   }
-
-  // If there's a session and the user is trying to access auth pages
-  if (session && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.pathname = '/dashboard'
-    return NextResponse.redirect(redirectUrl)
+  
+  // If user is logged in and tries to access auth pages, redirect to chat
+  if (user && isAuthRoute) {
+    return NextResponse.redirect(new URL('/chat', request.url))
   }
 
   return res

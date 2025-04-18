@@ -1,3 +1,5 @@
+"use client"
+
 export default function ChatPage() {
   return (
     <div className="container mx-auto p-8">

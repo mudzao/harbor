@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { createClient } from "@/utils/supabase/client"
+import { useRouter, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -24,7 +24,9 @@ export function LoginForm({
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClientComponentClient()
+  const searchParams = useSearchParams()
+  const redirectUrl = searchParams.get("redirect") || "/chat"
+  const supabase = createClient()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,7 +43,7 @@ export function LoginForm({
       if (error) {
         setError(error.message)
       } else {
-        router.push("/admin/dashboard")
+        router.push(redirectUrl)
       }
     } catch {
       setError("An error occurred during login")
